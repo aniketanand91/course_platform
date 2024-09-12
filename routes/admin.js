@@ -10,6 +10,8 @@ router.post('/categories', checkAdmin, categoryController.addCategory);
 // GET /admin/categories - Get all categories (admin only)
 router.get('/categories',  checkAdmin, categoryController.getAllCategories);
 
+
+router.get('/courses',   courseController.getCourse);
 // POST /admin/courses - Add a new course (admin only)
 router.post('/courses',  checkAdmin, courseController.addCourse);
 

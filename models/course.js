@@ -9,6 +9,13 @@ const createCourse = async ({ title, description, category_id, video_url, price 
   return result.insertId;
 };
 
+const getCourse = async () => {
+  const [rows] = await pool.query(
+    `SELECT * FROM Courses;`  // No placeholders, so no parameters are needed here
+  );
+  return rows;  // Return all rows instead of just the first one
+};
+
 const getCourseById = async (course_id) => {
   const [rows] = await pool.query(
     'SELECT * FROM Courses WHERE course_id = ?',
@@ -19,5 +26,6 @@ const getCourseById = async (course_id) => {
 
 module.exports = {
   createCourse,
-  getCourseById
+  getCourseById,
+  getCourse
 };
