@@ -1,9 +1,9 @@
 const db = require('../config/database');
 
 exports.checkPurchase = async (userId, videoId) => {
-  const query = 'SELECT * FROM purchases WHERE user_id = $1 AND video_id = $2';
-  const result = await db.query(query, [userId, videoId]);
-  return result.rows.length > 0;
+  const query = 'SELECT * FROM purchases WHERE user_id = ? AND video_id = ?';
+  const [rows] = await db.query(query, [userId, videoId]);
+  return rows.length > 0;
 };
 
 
