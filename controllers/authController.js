@@ -28,36 +28,28 @@ exports.signup = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
+  const { email, password } = req.body;
+
   try {
-    const { email, password } = req.body;
+       // Check if the user exists
+       const user = await userModel.getUserByEmail(email);
 
-    // Check if the user exists
-    const user = await userModel.getUserByEmail(email);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    // Verify the password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid password' });
     }
 
-    // Create and return a JWT token
-    const payload = {
-      user: {
-        id: user.user_id,
-        email: user.email,
-        role: user.role,
-      },
-    };
+    // Generate Token
+    const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-    jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
-      if (err) throw err;
-      res.json({ token });
-    });
+    res.json({ token });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Something went wrong' });
+    console.error('Error during login:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };

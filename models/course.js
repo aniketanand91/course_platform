@@ -21,6 +21,7 @@ const getCourseById = async (course_id) => {
     'SELECT * FROM Courses WHERE course_id = ?',
     [course_id]
   );
+  console.log(rows);
   return rows[0];
 };
 

@@ -1,10 +1,17 @@
-const checksum_lib = require('paytmchecksum');
-const { PAYTM_MID, PAYTM_MERCHANT_KEY, PAYTM_CHANNEL_ID, PAYTM_WEBSITE, PAYTM_INDUSTRY_TYPE, PAYTM_CALLBACK_URL, PAYTM_TRANSACTION_URL } = process.env;
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_CALLBACK_URL } = process.env;
 const paymentModel = require('../models/payment');
 const courseModel = require('../models/course');
 const userModel = require('../models/user');
 
-// Initiate Paytm payment
+// Initialize Razorpay instance
+const razorpay = new Razorpay({
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET,
+});
+
+// Initiate Razorpay payment
 exports.initiatePayment = async (req, res) => {
   try {
     const { userId, courseId } = req.body;
@@ -24,64 +31,80 @@ exports.initiatePayment = async (req, res) => {
     // Generate unique order ID
     const orderId = `ORDER_${new Date().getTime()}`;
 
-    const paytmParams = {
-      MID: PAYTM_MID,
-      WEBSITE: PAYTM_WEBSITE,
-      INDUSTRY_TYPE_ID: PAYTM_INDUSTRY_TYPE,
-      CHANNEL_ID: PAYTM_CHANNEL_ID,
-      ORDER_ID: orderId,
-      CUST_ID: user.email, 
-      TXN_AMOUNT: course.price.toString(),
-      CALLBACK_URL: PAYTM_CALLBACK_URL,
-      EMAIL: user.email,
-      MOBILE_NO: user.mobile,
-    };
-
-    // Generate Paytm checksum
-    const checksum = await checksum_lib.generateSignature(paytmParams, PAYTM_MERCHANT_KEY);
-    paytmParams['CHECKSUMHASH'] = checksum;
+    // Create Razorpay order
+    const razorpayOrder = await razorpay.orders.create({
+      amount: course.price * 100, // Amount in smallest currency unit (paise)
+      currency: 'INR',
+      receipt: orderId,
+      notes: {
+        userId: userId,
+        courseId: courseId,
+      },
+    });
 
     // Record the payment initiation
     await paymentModel.createPayment({
       user_id: userId,
       course_id: courseId,
       amount: course.price,
-      order_id: orderId,
+      order_id: razorpayOrder.id,
       payment_status: 'pending',
     });
 
-    // Send params to frontend
-    res.json({ url: PAYTM_TRANSACTION_URL, params: paytmParams });
+    // Send order details to frontend
+    res.json({
+      key: RAZORPAY_KEY_ID,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      name: 'Your Platform Name',
+      description: `Payment for ${course.name}`,
+      image: 'https://your-logo-url.com/logo.png', // Optional
+      order_id: razorpayOrder.id,
+      callback_url: RAZORPAY_CALLBACK_URL,
+      prefill: {
+        name: user.name,
+        email: user.email,
+        contact: user.mobile,
+      },
+      theme: {
+        color: '#F37254',
+      },
+    });
   } catch (error) {
     console.error('Error initiating payment:', error);
     res.status(500).json({ error: 'Payment initiation failed' });
   }
 };
 
-// Handle Paytm callback
-exports.handlePaytmCallback = async (req, res) => {
+// Handle Razorpay callback
+exports.handleRazorpayCallback = async (req, res) => {
   try {
-    const paytmResponse = req.body;
-    const paytmChecksum = paytmResponse.CHECKSUMHASH;
-    delete paytmResponse.CHECKSUMHASH;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
-    const isChecksumValid = await checksum_lib.verifySignature(paytmResponse, PAYTM_MERCHANT_KEY, paytmChecksum);
-    if (!isChecksumValid) {
-      return res.status(400).json({ error: 'Checksum mismatch' });
+    // Verify Razorpay signature
+    const generatedSignature = crypto
+      .createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({ error: 'Signature verification failed' });
     }
 
-    const { ORDERID, STATUS, TXNAMOUNT, TXNID, COURSEID, CUSTID } = paytmResponse;
-
-    if (STATUS === 'TXN_SUCCESS') {
-      await paymentModel.updatePaymentStatus(ORDERID, 'success', TXNAMOUNT, TXNID);
-      await courseModel.grantUserVideoAccess(CUSTID, COURSEID);
-      return res.status(200).json({ message: 'Payment successful' });
-    } else {
-      await paymentModel.updatePaymentStatus(ORDERID, 'failed');
-      return res.status(400).json({ message: 'Payment failed' });
+    // Update payment status
+    const payment = await paymentModel.getPaymentByOrderId(razorpay_order_id);
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment record not found' });
     }
+
+    await paymentModel.updatePaymentStatus(razorpay_order_id, 'success', payment.amount, razorpay_payment_id);
+
+    // Grant access to the course
+    await courseModel.grantUserVideoAccess(payment.user_id, payment.course_id);
+
+    res.status(200).json({ message: 'Payment successful' });
   } catch (error) {
-    console.error('Error handling Paytm callback:', error);
+    console.error('Error handling Razorpay callback:', error);
     res.status(500).json({ error: 'Callback handling failed' });
   }
 };

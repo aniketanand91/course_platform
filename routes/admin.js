@@ -8,7 +8,7 @@ const categoryController = require('../controllers/categoryController');
 router.post('/categories', checkAdmin, categoryController.addCategory);
 
 // GET /admin/categories - Get all categories (admin only)
-router.get('/categories',  checkAdmin, categoryController.getAllCategories);
+router.get('/categories',  categoryController.getAllCategories);
 
 
 router.get('/courses',   courseController.getCourse);
