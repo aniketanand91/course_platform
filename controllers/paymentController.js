@@ -99,8 +99,9 @@ exports.handleRazorpayCallback = async (req, res) => {
 
     await paymentModel.updatePaymentStatus(razorpay_order_id, 'success', payment.amount, razorpay_payment_id);
 
+
     // Grant access to the course
-    await courseModel.grantUserVideoAccess(payment.user_id, payment.course_id);
+    await paymentModel.grantUserVideoAccess(payment.user_id, payment.course_id);
 
     res.status(200).json({ message: 'Payment successful' });
   } catch (error) {

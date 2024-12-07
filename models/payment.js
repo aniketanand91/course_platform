@@ -22,3 +22,33 @@ exports.updatePaymentStatus = async (orderId, status, amount = null, transaction
   
   await db.query(query, values);
 };
+
+// In paymentModel.js
+exports.getPaymentByOrderId = async (orderId) => {
+  try {
+    const query = `
+      SELECT * FROM payments WHERE order_id = ?;
+    `;
+    const [rows] = await db.execute(query, [orderId]);
+    
+    if (rows.length === 0) {
+      return null; // No payment record found
+    }
+
+    return rows[0]; // Return the first record if found
+  } catch (error) {
+    console.error('Error getting payment by order ID:', error);
+    throw new Error('Failed to fetch payment');
+  }
+};
+
+
+exports.grantUserVideoAccess = async (user_id, course_id) => {
+  const query = `
+  INSERT INTO purchases (user_id, video_id, purchase_date, expiry_date)
+  VALUES (?, ?, CURRENT_TIMESTAMP, NULL);
+  `
+  const values = [paymentData.user_id, paymentData.course_id];
+
+  await db.query(query, values);
+}
