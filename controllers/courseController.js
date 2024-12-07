@@ -2,15 +2,15 @@ const courseModel = require('../models/course');
 
 exports.addCourse = async (req, res) => {
   try {
-    const { title, description, category_id, video_url, price } = req.body;
+    const { title, description, category_id, sub_category, video_url, price } = req.body;
 
     // Validate request body
-    if (!title || !description || !category_id || !video_url || !price) {
+    if (!title || !description || !category_id || !sub_category || !video_url || !price) {
       return res.status(400).json({ error: 'All fields are required, including price' });
     }
 
     // Insert the new course into the database
-    const courseId = await courseModel.createCourse({ title, description, category_id, video_url, price });
+    const courseId = await courseModel.createCourse({ title, description, category_id, sub_category, video_url, price });
 
     // Fetch the newly created course
     const newCourse = await courseModel.getCourseById(courseId);

@@ -1,10 +1,10 @@
 const pool = require('../config/database'); // Adjust the path to your db configuration file
 
-const createCourse = async ({ title, description, category_id, video_url, price }) => {
+const createCourse = async ({ title, description, category_id, sub_category, video_url, price }) => {
   const [result] = await pool.query(
-    `INSERT INTO Courses (title, description, category_id, video_url, price, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    [title, description, category_id, video_url, price]
+    `INSERT INTO Courses (title, description, category_id, sub_category, video_url, price, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [title, description, category_id, sub_category, video_url, price]
   );
   return result.insertId;
 };
