@@ -3,7 +3,7 @@ const router = express.Router();
 const paymentController = require('../controllers/paymentController');
 
 // Payment routes
-router.post('/initiate-payment', paymentController.initiatePayment);
-router.post('/paytm/callback', paymentController.handleRazorpayCallback);
+router.post('/initiate-payment',authMiddleware, paymentController.initiatePayment);
+router.post('/paytm/callback', authMiddleware,  paymentController.handleRazorpayCallback);
 
 module.exports = router;
