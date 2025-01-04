@@ -15,4 +15,6 @@ router.get('/courses',   courseController.getCourse);
 // POST /admin/courses - Add a new course (admin only)
 router.post('/courses',  checkAdmin, courseController.addCourse);
 
+router.post('/multiplecourse', checkAdmin, courseController.uploadVideo)
+
 module.exports = router;

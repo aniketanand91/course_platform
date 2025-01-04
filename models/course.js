@@ -1,19 +1,20 @@
 const pool = require('../config/database'); // Adjust the path to your db configuration file
 
-const createCourse = async ({ title, description, category_id, sub_category, video_url, price }) => {
+const createCourse = async ({ title, description, category_id, sub_category, video_url, price, thumbnail }) => {
   const [result] = await pool.query(
-    `INSERT INTO Courses (title, description, category_id, sub_category, video_url, price, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    [title, description, category_id, sub_category, video_url, price]
+    `INSERT INTO Courses (title, description, category_id, sub_category, video_url, price, thumbnail, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [title, description, category_id, sub_category, video_url, price, thumbnail]
   );
   return result.insertId;
 };
 
+
 const getCourse = async () => {
   const [rows] = await pool.query(
-    `SELECT * FROM Courses;`  // No placeholders, so no parameters are needed here
+    `SELECT * FROM Courses;`  
   );
-  return rows;  // Return all rows instead of just the first one
+  return rows;  
 };
 
 const getCourseById = async (course_id) => {
@@ -21,12 +22,45 @@ const getCourseById = async (course_id) => {
     'SELECT * FROM Courses WHERE course_id = ?',
     [course_id]
   );
-  console.log(rows);
   return rows[0];
+};
+
+const getCourseWithPlaylist = async (courseId) => {
+  // Fetch the course details
+  const [course] = await pool.query('SELECT * FROM courses WHERE course_id = ?', [courseId]);
+
+  if (!course || course.length === 0) {
+    throw new Error('Course not found');
+  }
+
+  // Fetch the videos associated with the course, ordered by position
+  const playlist = await db.query(
+    'SELECT video_url, description, position FROM course_videos WHERE course_id = ? ORDER BY position ASC',
+    [courseId]
+  );
+
+  // Combine the course data with the playlist
+  const courseWithPlaylist = {
+    ...course[0], // Extract the first item (only one course is returned)
+    playlist,     // Add the playlist of videos
+  };
+
+  return courseWithPlaylist;
+};
+
+const addVideoToCourse = async (videoData) => {
+  const { course_id, video_url, description, position } = videoData;
+  const [result] = await pool.query(
+    'INSERT INTO course_videos (course_id, video_url, description, position) VALUES (?, ?, ?,?)',
+    [course_id, video_url, description, position] 
+  );
+  return result.insertId;
 };
 
 module.exports = {
   createCourse,
   getCourseById,
-  getCourse
+  getCourse,
+  addVideoToCourse,
+  getCourseWithPlaylist
 };

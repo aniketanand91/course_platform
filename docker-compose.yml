@@ -1,0 +1,41 @@
+version: '3'
+services:
+  app:
+    build: Dockerfile
+    ports:
+      - "${PORT}:${PORT}"  # Exposes the app port from the container to the host
+    depends_on:
+      db:
+        condition: service_healthy  # Wait for the DB to be healthy before starting the app
+    environment:
+      - DB_USER=${DB_USER}
+      - DB_HOST=db
+      - DB_NAME=${DB_NAME}
+      - DB_PASS=${DB_PASS}
+      - DB_PORT=${DB_PORT}
+      - PORT=${PORT}
+      - JWT_SECRET=${JWT_SECRET}
+    networks:
+      - backend
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASS}  # MySQL root password
+      MYSQL_DATABASE: ${DB_NAME}       # Database name
+    volumes:
+      - db_data:/var/lib/mysql          # Persistent MySQL data
+      - ./initdb:/docker-entrypoint-initdb.d  # Initialize the database with scripts (if any)
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+volumes:
+  db_data:  # Volume to persist MySQL data
+
+networks:
+  backend:  # Custom network for the app and db to communicate

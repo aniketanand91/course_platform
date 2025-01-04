@@ -1,9 +1,12 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const userModel = require('../models/user');
+const { OAuth2Client } = require('google-auth-library'); // Google Auth Library
+const { JWT_SECRET, GOOGLE_CLIENT_ID } = process.env; // Ensure these environment variables are set
 
-const { JWT_SECRET } = process.env; // Ensure this line is correctly placed
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+// Signup (traditional)
 exports.signup = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
@@ -27,12 +30,13 @@ exports.signup = async (req, res) => {
   }
 };
 
+// Login (traditional)
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-       // Check if the user exists
-       const user = await userModel.getUserByEmail(email);
+    // Check if the user exists
+    const user = await userModel.getUserByEmail(email);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -45,19 +49,72 @@ exports.login = async (req, res) => {
     }
 
     // Generate Token
-    const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    UserInfo = {
-      user_ID:user.user_id,
-      UserName:user.name,
-      UserEmail:user.email,
-      UserRole:user.role,
-      usertoken:token
-    }
+    const token = jwt.sign({ userId: user.user_id }, JWT_SECRET, { expiresIn: '1h' });
 
-    res.json({ UserInfo });
+    const userInfo = {
+      user_ID: user.user_id,
+      UserName: user.name,
+      UserEmail: user.email,
+      UserRole: user.role,
+      userToken: token,
+    };
 
+    res.json({ userInfo });
   } catch (error) {
     console.error('Error during login:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Google OAuth
+exports.googleOAuth = async (req, res) => {
+  const { idToken } = req.body; // Expect idToken from the client
+
+  try {
+    // Verify the Google ID Token
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,  // Ensure you use the correct Client ID from your environment variable
+    });
+
+    const payload = ticket.getPayload(); // Extract user information from token
+    const { sub: googleId, email, name } = payload;
+
+    // Check if the user already exists by Google ID or email
+    console.log(name);
+    let user = await userModel.getUserByGoogleId(googleId);
+    if (!user) {
+      user = await userModel.getUserByEmail(email);
+
+      if (!user) {
+        // Create a new user if not found
+        user = await userModel.createUser({
+          name,
+          email,
+          password: null, // No password for Google OAuth
+          role: 'user',
+          googleId,
+        });
+      } else {
+        // Link the Google ID to the existing user
+        await userModel.linkGoogleIdToUser(user.user_id, googleId);
+      }
+    }
+
+    // Generate Token
+    const token = jwt.sign({ userId: user.user_id }, JWT_SECRET, { expiresIn: '1h' });
+
+    const userInfo = {
+      user_ID: user.user_id,
+      UserName: user.name,
+      UserEmail: user.email,
+      UserRole: user.role,
+      userToken: token,
+    };
+
+    res.json({ userInfo });
+  } catch (error) {
+    console.error('Error during Google OAuth:', error);
+    res.status(500).json({ message: 'Authentication failed' });
   }
 };

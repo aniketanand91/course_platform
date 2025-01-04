@@ -1,6 +1,5 @@
 const db = require('../config/database');
 
-// Create a new payment record
 exports.createPayment = async (paymentData) => {
   const query = `
     INSERT INTO payments (user_id, course_id, amount, payment_status, payment_date, order_id)
@@ -11,7 +10,7 @@ exports.createPayment = async (paymentData) => {
   await db.query(query, values);
 };
 
-// Update payment status
+
 exports.updatePaymentStatus = async (orderId, status, amount = null, transactionId = null) => {
   const query = `
     UPDATE payments
