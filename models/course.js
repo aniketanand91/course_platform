@@ -27,7 +27,7 @@ const getCourseById = async (course_id) => {
 
 const getCourseWithPlaylist = async (courseId) => {
   // Fetch the course details
-  const [course] = await pool.query('SELECT * FROM courses WHERE course_id = ?', [courseId]);
+  const [course] = await pool.query('SELECT * FROM Courses WHERE course_id = ?', [courseId]);
 
   if (!course || course.length === 0) {
     throw new Error('Course not found');

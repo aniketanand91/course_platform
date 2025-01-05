@@ -41,7 +41,7 @@ CREATE TABLE course_videos (
     KEY (course_id)
 );
 
-CREATE TABLE courses (
+CREATE TABLE Courses (
     course_id INT NOT NULL AUTO_INCREMENT,
     title VARCHAR(255) NOT NULL,
     description TEXT DEFAULT NULL,
