@@ -4,7 +4,7 @@ const getCouponByCodeAndUser = async (couponCode, userId, amount) => {
   try {
     const query = `
       SELECT * FROM coupons 
-      WHERE coupon_name = ? AND user_id = ? AND used = 0 AND expiry_date > NOW()
+      WHERE coupon_name = ? AND user_id = ? AND used = 0
     `;
     const [coupon] = await db.query(query, [couponCode, userId]);
     const couponValue = coupon[0].coupon_value;
@@ -31,7 +31,6 @@ const applyCouponToAmount = async (couponCode, userId, amount) => {
             FROM coupons
             WHERE coupon_name = ? 
             AND user_id = ? 
-            AND expiry_date > NOW() 
             AND used = 0
             LIMIT 1
         `;

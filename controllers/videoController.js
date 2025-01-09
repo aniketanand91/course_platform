@@ -34,7 +34,7 @@ exports.getCourseDetails = async (req, res) => {
         thumbnail, 
         created_at AS createdAt, 
         updated_at AS updatedAt 
-      FROM courses 
+      FROM Courses 
       WHERE course_id = ?`;
     const [rows] = await pool.query(query, [courseId]);
 
@@ -84,7 +84,7 @@ exports.getPurchasedVideoDetails = async (req, res) => {
     // Query to fetch video details from the courses table
     const videoQuery = `
       SELECT course_id, title, description, category_id, video_url, price, sub_category, thumbnail
-      FROM courses
+      FROM Courses
       WHERE course_id IN (?)`;
     const [videoDetails] = await pool.query(videoQuery, [videoIds]);
 
@@ -130,7 +130,7 @@ exports.streamVideo = async (req, res) => {
     }
 
     // Fetch the video URL from the database
-    const query = 'SELECT * FROM courses WHERE course_id = ?';
+    const query = 'SELECT * FROM Courses WHERE course_id = ?';
     const [rows] = await pool.query(query, [videoId]);
 
     if (rows.length === 0) {
@@ -160,7 +160,6 @@ exports.streamVideo = async (req, res) => {
   }
 };
 
-
 exports.streamVideos = async (req, res) => {
   const { videoId } = req.params;
   try {
@@ -172,10 +171,6 @@ exports.streamVideos = async (req, res) => {
       });
     }
 
-    console.log('UserID:', userId);
-    console.log('VideoID:', videoId);
-
-    // Check if the user has purchased the video
     const hasPurchased = await videoModel.checkPurchase(userId, videoId);
     if (!hasPurchased) {
       return res.status(403).json({
@@ -185,9 +180,11 @@ exports.streamVideos = async (req, res) => {
     }
 
 
-    const query = 'SELECT * FROM courses WHERE course_id = ?';
+    const query = 'SELECT * FROM Courses WHERE course_id = ?';
     const [rows] = await pool.query(query, [videoId]);
 
+    const query1 = 'SELECT * FROM course_videos WHERE course_id = ? ORDER BY position ASC'
+    const [playlist] = await pool.query( query1, [videoId] );
     if (rows.length === 0) {
       return res.status(404).json({
         success: false,
@@ -204,20 +201,14 @@ exports.streamVideos = async (req, res) => {
       });
     }
 
-    const params = {
-      Bucket: AWS_S3_BUCKET_NAME, 
-      Key: videoKey, 
-      Expires: 60 * 60, 
-    };
 
-    const signedUrl = s3.getSignedUrl('getObject', params);
 
     res.status(200).json({
       success: true,
       message: 'Video access granted.',
       data: {
         metadata:rows,
-        videoUrl: signedUrl,
+        playlist:playlist
       },
     });
   } catch (error) {
@@ -226,6 +217,6 @@ exports.streamVideos = async (req, res) => {
       success: false,
       message: 'An error occurred while processing your request.',
       error: error.message,
-    });
-  }
+    });
+  }
 };
