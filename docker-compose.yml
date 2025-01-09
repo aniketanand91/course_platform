@@ -16,7 +16,7 @@ services:
       - PORT=${PORT}
       - JWT_SECRET=${JWT_SECRET}
     volumes:
-      - thumbnails_data:/home/ec2-user/Course_platform/uploads/thumbnails 
+      - thumbnails_data:/home/ec2-user/course_platform/uploads/thumbnails 
     networks:
       - backend
 
