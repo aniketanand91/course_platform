@@ -158,3 +158,67 @@ exports.handleRazorpayCallback = async (req, res) => {
     res.status(500).json({ message: 'Callback handling failed' });
   }
 };
+
+exports.verifyPayment = async (req, res) => {
+  try {
+    const { razorpay_order_id } = req.body;
+
+    // Validate input
+    if (!razorpay_order_id) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    // Fetch payment details from the database
+    const payment = await paymentModel.getPaymentByOrderId(razorpay_order_id);
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment record not found' });
+    }
+
+    // Use Razorpay's API to fetch the payment details
+    const razorpayPaymentDetails = await razorpay.payments.fetch(razorpay_order_id);
+
+    // Verify the payment status
+    if (razorpayPaymentDetails.status === 'captured') {
+      // Update the payment status in the database if it's not already updated
+      if (payment.payment_status !== 'success') {
+        await paymentModel.updatePaymentStatus(
+          razorpay_order_id,
+          'success',
+          payment.amount,
+          razorpayPaymentDetails.id
+        );
+        await paymentModel.grantUserVideoAccess(payment.user_id, payment.course_id);
+      }
+
+      return res.status(200).json({
+        message: 'Payment verified successfully',
+        paymentStatus: 'success',
+        razorpayPaymentDetails,
+      });
+    } else {
+      // Handle failed payments
+      const failureReason = razorpayPaymentDetails.error_reason || 'Unknown reason';
+
+      // Update the payment status in the database
+      await paymentModel.updatePaymentStatus(
+        razorpay_order_id,
+        'failed',
+        payment.amount,
+        razorpayPaymentDetails.id
+      );
+
+      return res.status(400).json({
+        error: 'Payment verification failed',
+        paymentStatus: razorpayPaymentDetails.status,
+        failureReason,
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    res.status(500).json({ message: 'Payment verification failed. Please try again.' });
+  }
+};
+
+
+
+

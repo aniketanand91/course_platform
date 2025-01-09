@@ -120,3 +120,28 @@ exports.uploadVideo = async (req, res) => {
     });
   }
 };
+
+
+exports.submitProject = async (req, res) => {
+  try {
+    const { user_id, link } = req.body;
+
+    // Validate input
+    if (!user_id || !link) {
+      return res.status(400).json({ error: 'User ID and link are required' });
+    }
+
+    // Insert the submission into the database
+    const query = `
+      INSERT INTO ProjectSubmissions (user_id, submission_link, submitted_at) 
+      VALUES (?, ?, NOW())
+    `;
+    const values = [user_id, link];
+    await db.query(query, values);
+
+    res.status(201).json({ message: 'Project submitted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error while submitting the project' });
+  }
+};
