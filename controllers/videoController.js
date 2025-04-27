@@ -160,8 +160,70 @@ exports.streamVideo = async (req, res) => {
   }
 };
 
+// exports.streamVideos = async (req, res) => {
+//   const { videoId } = req.params;
+//   try {
+//     const userId = req.user?.userId;
+//     if (!videoId) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Video ID is required.',
+//       });
+//     }
+
+//     const hasPurchased = await videoModel.checkPurchase(userId, videoId);
+//     if (!hasPurchased) {
+//       return res.status(403).json({
+//         success: false,
+//         message: 'Access denied. You need to purchase this video.',
+//       });
+//     }
+
+
+//     const query = 'SELECT * FROM Courses WHERE course_id = ?';
+//     const [rows] = await pool.query(query, [videoId]);
+
+//     const query1 = 'SELECT * FROM course_videos WHERE course_id = ? ORDER BY position ASC'
+//     const [playlist] = await pool.query( query1, [videoId] );
+//     if (rows.length === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Video not found in the database.',
+//       });
+//     }
+
+//     const videoKey = rows[0].video_url;
+
+//     if (!videoKey) {
+//       return res.status(500).json({
+//         success: false,
+//         message: 'Video URL is missing in the database.',
+//       });
+//     }
+
+
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Video access granted.',
+//       data: {
+//         metadata:rows,
+//         playlist:playlist
+//       },
+//     });
+//   } catch (error) {
+//     console.error('Error streaming video:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'An error occurred while processing your request.',
+//       error: error.message,
+//     });
+//   }
+// };
+
 exports.streamVideos = async (req, res) => {
   const { videoId } = req.params;
+
   try {
     const userId = req.user?.userId;
     if (!videoId) {
@@ -171,28 +233,41 @@ exports.streamVideos = async (req, res) => {
       });
     }
 
-    const hasPurchased = await videoModel.checkPurchase(userId, videoId);
-    if (!hasPurchased) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. You need to purchase this video.',
-      });
+    // Fetch the user and check their role
+    const user = await userModel.getUserById(userId);
+
+    const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+
+    // Check purchase only if not admin
+    if (!isAdmin) {
+      const hasPurchased = await videoModel.checkPurchase(userId, videoId);
+      if (!hasPurchased) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. You need to purchase this video.',
+        });
+      }
     }
 
+    // Fetch course details
+    const [courseRows] = await pool.query(
+      'SELECT * FROM Courses WHERE course_id = ?',
+      [videoId]
+    );
 
-    const query = 'SELECT * FROM Courses WHERE course_id = ?';
-    const [rows] = await pool.query(query, [videoId]);
-
-    const query1 = 'SELECT * FROM course_videos WHERE course_id = ? ORDER BY position ASC'
-    const [playlist] = await pool.query( query1, [videoId] );
-    if (rows.length === 0) {
+    if (courseRows.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Video not found in the database.',
       });
     }
 
-    const videoKey = rows[0].video_url;
+    const [playlist] = await pool.query(
+      'SELECT * FROM course_videos WHERE course_id = ? ORDER BY position ASC',
+      [videoId]
+    );
+
+    const videoKey = courseRows[0].video_url;
 
     if (!videoKey) {
       return res.status(500).json({
@@ -201,14 +276,12 @@ exports.streamVideos = async (req, res) => {
       });
     }
 
-
-
     res.status(200).json({
       success: true,
       message: 'Video access granted.',
       data: {
-        metadata:rows,
-        playlist:playlist
+        metadata: courseRows,
+        playlist: playlist,
       },
     });
   } catch (error) {
@@ -217,6 +290,6 @@ exports.streamVideos = async (req, res) => {
       success: false,
       message: 'An error occurred while processing your request.',
       error: error.message,
-    });
-  }
+    });
+  }
 };
