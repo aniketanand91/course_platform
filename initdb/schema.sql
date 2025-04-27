@@ -63,6 +63,7 @@ CREATE TABLE payments (
     payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     payment_status VARCHAR(50) NOT NULL,
     order_id VARCHAR(255) NOT NULL,
+    transaction_id VARCHAR(200) NOT NULL,  
     coupon_code VARCHAR(50) DEFAULT NULL,
     discount_amount DECIMAL(10,2) DEFAULT 0.00,
     PRIMARY KEY (payment_id)
