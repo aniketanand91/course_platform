@@ -47,7 +47,7 @@ exports.grantUserVideoAccess = async (user_id, course_id) => {
   INSERT INTO purchases (user_id, video_id, purchase_date, expiry_date)
   VALUES (?, ?, CURRENT_TIMESTAMP, NULL);
   `
-  const values = [paymentData.user_id, paymentData.course_id];
+  const values = [user_id, course_id];
 
   await db.query(query, values);
 }
