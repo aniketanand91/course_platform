@@ -161,25 +161,33 @@ exports.handleRazorpayCallback = async (req, res) => {
 
 exports.verifyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id } = req.body;
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
     // Validate input
-    if (!razorpay_order_id) {
-      return res.status(400).json({ error: 'Order ID is required' });
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ success: false, error: 'Order ID, Payment ID, and Signature are required' });
     }
 
-    // Fetch payment details from the database
+    // Fetch payment details from your database
     const payment = await paymentModel.getPaymentByOrderId(razorpay_order_id);
     if (!payment) {
-      return res.status(404).json({ error: 'Payment record not found' });
+      return res.status(404).json({ success: false, error: 'Payment record not found' });
     }
 
-    // Use Razorpay's API to fetch the payment details
-    const razorpayPaymentDetails = await razorpay.payments.fetch(razorpay_order_id);
+    // Verify Razorpay signature
+    const generatedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
 
-    // Verify the payment status
+    if (generatedSignature !== razorpay_signature) {
+      return res.status(400).json({ success: false, error: 'Invalid signature. Payment verification failed.' });
+    }
+
+    // Fetch the latest payment status from Razorpay
+    const razorpayPaymentDetails = await razorpay.payments.fetch(razorpay_payment_id);
+
     if (razorpayPaymentDetails.status === 'captured') {
-      // Update the payment status in the database if it's not already updated
+      // Update payment status if not already success
       if (payment.payment_status !== 'success') {
         await paymentModel.updatePaymentStatus(
           razorpay_order_id,
@@ -191,15 +199,13 @@ exports.verifyPayment = async (req, res) => {
       }
 
       return res.status(200).json({
+        success: true,
         message: 'Payment verified successfully',
         paymentStatus: 'success',
         razorpayPaymentDetails,
       });
     } else {
-      // Handle failed payments
-      const failureReason = razorpayPaymentDetails.error_reason || 'Unknown reason';
-
-      // Update the payment status in the database
+      // Handle not captured payments
       await paymentModel.updatePaymentStatus(
         razorpay_order_id,
         'failed',
@@ -208,17 +214,13 @@ exports.verifyPayment = async (req, res) => {
       );
 
       return res.status(400).json({
-        error: 'Payment verification failed',
+        success: false,
+        error: 'Payment was not successful',
         paymentStatus: razorpayPaymentDetails.status,
-        failureReason,
       });
     }
   } catch (error) {
     console.error('Error verifying payment:', error);
-    res.status(500).json({ message: 'Payment verification failed. Please try again.' });
+    return res.status(500).json({ success: false, message: 'Payment verification failed. Please try again later.' });
   }
 };
-
-
-
-
