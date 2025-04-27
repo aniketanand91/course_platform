@@ -11,7 +11,7 @@ CREATE TABLE users (
     PRIMARY KEY (user_id)
 );
 
-CREATE TABLE categories (
+CREATE TABLE Categories (
     category_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
     description TEXT DEFAULT NULL,
