@@ -1,10 +1,10 @@
 const pool = require('../config/database'); // Adjust the path to your db configuration file
 
-const createCourse = async ({ title, description, category_id, sub_category, video_url, price, thumbnail }) => {
+const createCourse = async ({ title, description, category_id, sub_category, video_url, price, thumbnail, user_id }) => {
   const [result] = await pool.query(
-    `INSERT INTO Courses (title, description, category_id, sub_category, video_url, price, thumbnail, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    [title, description, category_id, sub_category, video_url, price, thumbnail]
+    `INSERT INTO Courses (title, description, category_id, sub_category, video_url, price, thumbnail, user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [title, description, category_id, sub_category, video_url, price, thumbnail, user_id]
   );
   return result.insertId;
 };
@@ -12,10 +12,20 @@ const createCourse = async ({ title, description, category_id, sub_category, vid
 
 const getCourse = async () => {
   const [rows] = await pool.query(
-    `SELECT * FROM Courses;`  
+    `SELECT * FROM Courses WHERE is_live = TRUE`  
   );
   return rows;  
 };
+
+const getCourseForAdmin = async (user_id) => {
+  console.log("+++++++++", user_id)
+  const [rows] = await pool.query(
+    'SELECT * FROM Courses WHERE user_id = ?',
+    [user_id]
+  );
+  return rows;
+};
+
 
 const getCourseById = async (course_id) => {
   const [rows] = await pool.query(
@@ -62,5 +72,6 @@ module.exports = {
   getCourseById,
   getCourse,
   addVideoToCourse,
-  getCourseWithPlaylist
+  getCourseWithPlaylist,
+  getCourseForAdmin
 };
