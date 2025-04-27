@@ -52,6 +52,8 @@ CREATE TABLE Courses (
     price DECIMAL(10,2) DEFAULT NULL,
     sub_category VARCHAR(255) DEFAULT NULL,
     thumbnail VARCHAR(255) DEFAULT NULL,
+    is_live TINYINT(1) NOT NULL DEFAULT 0,
+    user_id INT NOT NULL,
     PRIMARY KEY (course_id)
 );
 
