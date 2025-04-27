@@ -6,6 +6,7 @@ const courseModel = require('../models/course');
 const userModel = require('../models/user');
 const couponModel = require('../models/copoun');
 
+
 // Initialize Razorpay instance
 const razorpay = new Razorpay({
   key_id: RAZORPAY_KEY_ID,
@@ -224,3 +225,7 @@ exports.verifyPayment = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Payment verification failed. Please try again later.' });
   }
 };
+
+
+
+
