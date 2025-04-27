@@ -23,7 +23,7 @@ const checkAdmin = async (req, res, next) => {
     }
 
     // Check if the user role is 'admin'
-    if (user.role === 'admin') {
+    if (user.role === 'admin' || user.role === 'superadmin') {
       req.user = user; // Attach the user to the request object
       next(); // Allow access to the next middleware or route handler
     } else {
