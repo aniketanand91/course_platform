@@ -85,6 +85,8 @@ CREATE TABLE ProjectSubmissions (
     user_id BIGINT UNSIGNED NOT NULL,
     submission_link VARCHAR(255) NOT NULL,
     submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id),
+    course_id INT UNSIGNED NOT NULL,
+    status ENUM('Under Review', 'Approved', 'Rejected') DEFAULT 'Under Review'
 );
 

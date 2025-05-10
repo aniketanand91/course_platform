@@ -22,4 +22,7 @@ router.post('/multiplecourse',  courseController.uploadVideo)
 router.post('/approve-course',checkAdmin, adminController.approveCourse);
 router.get('/admin/courses', checkAdmin,adminController.getAllCoursesWithUser);
 
+router.get('/getProjectDetails', checkAdmin,adminController.getAllProjectSubmissions);
+router.post('/approve-reject', checkAdmin,adminController.approveProjectSubmitted);
+
 module.exports = router;

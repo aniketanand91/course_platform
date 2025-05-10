@@ -15,4 +15,6 @@ router.post('/google-oauth', authController.googleOAuth);
 
 router.post('/ProjectSubmission', authMiddleware, courseController.submitProject);
 
+router.post('/getProjectSubmissionDetails', authMiddleware, courseController.projectStatus);
+
 module.exports = router;

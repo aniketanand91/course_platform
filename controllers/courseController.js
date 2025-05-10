@@ -183,7 +183,7 @@ exports.uploadVideo = [
 
 exports.submitProject = async (req, res) => {
   try {
-    const { user_id, link } = req.body;
+    const { user_id, link, course_id } = req.body;
 
     // Validate input
     if (!user_id || !link) {
@@ -192,15 +192,34 @@ exports.submitProject = async (req, res) => {
 
     // Insert the submission into the database
     const query = `
-      INSERT INTO ProjectSubmissions (user_id, submission_link, submitted_at) 
-      VALUES (?, ?, NOW())
+      INSERT INTO ProjectSubmissions (user_id, submission_link, course_id, submitted_at) 
+      VALUES (?, ?, ?, NOW())
     `;
-    const values = [user_id, link];
+    const values = [user_id, link, course_id];
     await db.query(query, values);
 
     res.status(201).json({ message: 'Project submitted successfully' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error while submitting the project' });
+  }
+};
+
+
+exports.projectStatus = async (req, res) => {
+  const { course_id, user_id } = req.body;
+
+  const query = `
+    SELECT * FROM ProjectSubmissions
+    WHERE course_id = ? AND user_id = ?`;
+
+  const values = [course_id, user_id];
+
+  try {
+    const [rows] = await db.query(query, values);
+    res.status(200).json(rows); // Send the result back to the client
+  } catch (error) {
+    console.error('Error fetching project status:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
