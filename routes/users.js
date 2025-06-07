@@ -7,6 +7,7 @@ const courseController = require('../controllers/courseController');
 // Signup route
 router.post('/signup', authController.signup);
 
+router.post('/verifyOtp', authController.verifyOtpAndRegister);
 // Login route
 router.post('/login', authController.login);
 

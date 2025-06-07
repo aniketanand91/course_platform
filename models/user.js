@@ -6,6 +6,42 @@ const getUserByEmail = async (email) => {
   return rows[0];
 };
 
+const getUserByMobile = async (mobile) => {
+  const [rows] = await pool.query('SELECT * FROM users WHERE mobile = ?', [mobile]);
+  return rows[0];
+};
+const storeOTP = async (mobile, otp) => {
+  const query = `
+    INSERT INTO user_otps (mobile, otp, created_at)
+    VALUES (?, ?, NOW())
+    ON DUPLICATE KEY UPDATE otp = VALUES(otp), created_at = NOW()
+  `;
+  await pool.query(query, [mobile, otp]);
+};
+
+const verifyOTP = async (mobile, otp) => {
+  // Define OTP expiry duration in minutes
+  const otpValidityMinutes = 5;
+
+  // Query to check if OTP matches and is not expired
+  const query = `
+    SELECT * FROM user_otps 
+    WHERE mobile = ? 
+      AND otp = ? 
+      AND created_at >= (NOW() - INTERVAL ? MINUTE)
+  `;
+
+  const [rows] = await pool.query(query, [mobile, otp, otpValidityMinutes]);
+
+  if (rows.length === 0) {
+    return false;
+  }
+
+  // OTP is valid, optionally delete or invalidate it after verification:
+  await pool.query('DELETE FROM user_otps WHERE mobile = ?', [mobile]);
+
+  return true;
+};
 // Get user by Google ID
 const getUserByGoogleId = async (googleId) => {
   const [rows] = await pool.query('SELECT * FROM users WHERE google_id = ?', [googleId]);
@@ -18,10 +54,10 @@ const linkGoogleIdToUser = async (userId, googleId) => {
 
 // Create a new user
 const createUser = async (user) => {
-  const { name, email, password, role, googleId } = user;
+  const { name, mobile, email, password, role, googleId } = user;
   const [result] = await pool.query(
-    'INSERT INTO users (name, email, password, role, google_id) VALUES (?, ?, ?, ?, ?)',
-    [name, email, password || null, role || 'user', googleId || null]
+    'INSERT INTO users (name, mobile, email, password, role, google_id) VALUES (?, ?, ?, ?, ?, ?)',
+    [name, mobile, email,  password || null, role || 'user', googleId || null]
   );
   return { id: result.insertId, ...user };
 };
@@ -56,7 +92,10 @@ const findOrCreateGoogleUser = async (profile) => {
 };
 
 module.exports = {
+  getUserByMobile,
   getUserByEmail,
+  storeOTP,
+  verifyOTP,
   getUserByGoogleId,
   createUser,
   getUserById,

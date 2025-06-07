@@ -1,36 +1,67 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const AWS = require('aws-sdk');
 const userModel = require('../models/user');
-const { OAuth2Client } = require('google-auth-library'); // Google Auth Library
-const { JWT_SECRET, GOOGLE_CLIENT_ID } = process.env; // Ensure these environment variables are set
+const { OAuth2Client } = require('google-auth-library'); 
+const { JWT_SECRET, GOOGLE_CLIENT_ID } = process.env; 
 
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Signup (traditional)
+const sns = new AWS.SNS();
+
 exports.signup = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, mobile, email, password, role } = req.body;
 
     // Check if the user already exists
-    const existingUser = await userModel.getUserByEmail(email);
+    const existingUser = await userModel.getUserByMobile(mobile);
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // Hash the password
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // Send OTP via AWS SNS
+    const params = {
+      Message: `Dear User, Your One-Time Password (OTP) for verification on the Receptive India learning platform is: ${otp}. This code is valid for the next 5 minutes. Do not share it with anyone for security reasons.`,
+      PhoneNumber: `+91${mobile}`, // Ensure correct format
+    };
+    
+
+    await sns.publish(params).promise();
+    // Optionally store OTP in your DB or cache (e.g., Redis) for later verification
+    await userModel.storeOTP(mobile, otp); // You'll need to implement this
+
+    res.status(200).json({ message: 'OTP sent successfully', mobile });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Something went wrong while signing up' });
+  }
+};
+// Login (traditional)
+
+exports.verifyOtpAndRegister = async (req, res) => {
+  try {
+    const { name, mobile, email, password, role, otp } = req.body;
+
+    const isValidOtp = await userModel.verifyOTP(mobile, otp);
+    if (!isValidOtp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create the user
-    const newUser = await userModel.createUser({ name, email, password: hashedPassword, role });
+    const newUser = await userModel.createUser({ name, mobile, email,  password: hashedPassword, role });
     res.status(201).json(newUser);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Something went wrong' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'OTP verification failed' });
   }
 };
 
-// Login (traditional)
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
