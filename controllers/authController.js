@@ -63,11 +63,21 @@ exports.verifyOtpAndRegister = async (req, res) => {
 };
 
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  const { identifier, password } = req.body; // renamed from email to identifier
 
   try {
-    // Check if the user exists
-    const user = await userModel.getUserByEmail(email);
+    let user;
+
+    // Simple regex to check if identifier is email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (emailRegex.test(identifier)) {
+      // If identifier matches email format
+      user = await userModel.getUserByEmail(identifier);
+    } else {
+      // Otherwise treat as mobile number
+      user = await userModel.getUserByMobile(identifier);
+    }
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -96,6 +106,7 @@ exports.login = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 // Google OAuth
 exports.googleOAuth = async (req, res) => {
