@@ -23,20 +23,62 @@ exports.getCourseDetails = async (req, res) => {
     console.log('Fetching details for CourseID:', courseId);
 
     // Query to fetch course details excluding the video URL
-    const query = `
-      SELECT 
-        course_id, 
-        title, 
-        description, 
-        category_id AS categoryId, 
-        sub_category AS subCategory, 
-        price, 
-        thumbnail, 
-        created_at AS createdAt, 
-        updated_at AS updatedAt 
-      FROM Courses 
-      WHERE course_id = ?`;
-    const [rows] = await pool.query(query, [courseId]);
+const query = `
+    SELECT 
+        c.course_id, 
+        c.title, 
+        c.description, 
+        c.category_id AS categoryId, 
+        c.sub_category AS subCategory, 
+        c.price, 
+        c.thumbnail, 
+        c.created_at AS createdAt, 
+        c.updated_at AS updatedAt,
+        cv.position,
+        cv.description AS video_description, 
+        CASE 
+            WHEN cv.position = 0 THEN cv.video_url
+            ELSE NULL
+        END AS video_url,
+        (
+            SELECT 
+                AVG(rating) 
+            FROM 
+                CourseReviews 
+            WHERE 
+                course_id = c.course_id
+        ) AS average_rating
+    FROM 
+        Courses c
+    LEFT JOIN 
+        course_videos cv ON c.course_id = cv.course_id
+    WHERE 
+        c.course_id = ?
+    ORDER BY 
+        cv.position
+`;
+
+const [rows] = await pool.query(query, [courseId]);
+
+// Structure the result in the desired format
+const course = {
+  course_id: rows[0].course_id,
+  title: rows[0].title,
+  description: rows[0].description,
+  categoryId: rows[0].categoryId,
+  subCategory: rows[0].subCategory,
+  price: rows[0].price,
+  thumbnail: rows[0].thumbnail,
+  createdAt: rows[0].createdAt,
+  updatedAt: rows[0].updatedAt,
+  average_rating: rows[0].average_rating, // Added line
+  videos: rows.map(video => ({
+    position: video.position,
+    video_description: video.video_description,
+    video_url: video.video_url // Null for positions other than 0
+  }))
+};
+
 
     if (rows.length === 0) {
       return res.status(404).json({
@@ -50,7 +92,7 @@ exports.getCourseDetails = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Course details fetched successfully.',
-      data: courseDetails,
+      data: course,
     });
   } catch (error) {
     console.error('Error fetching course details:', error);
@@ -65,10 +107,12 @@ exports.getCourseDetails = async (req, res) => {
 exports.getPurchasedVideoDetails = async (req, res) => {
   try {
     const userId = req.user.userId; // Extract userId from JWT token
-    // Query to fetch all purchased videos by the user
+
+    // Query to fetch all purchased videos by the user within 90 days
     const purchaseQuery = `
       SELECT video_id FROM purchases
-      WHERE user_id = ?`;
+      WHERE user_id = ? AND purchase_date >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
+    `;
     const [purchaseRows] = await pool.query(purchaseQuery, [userId]);
 
     if (purchaseRows.length === 0) {
@@ -109,6 +153,7 @@ exports.getPurchasedVideoDetails = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -289,6 +334,51 @@ exports.streamVideos = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'An error occurred while processing your request.',
+      error: error.message,
+    });
+  }
+};
+
+
+
+exports.getReviews = async (req, res) => {
+  const { course_id } = req.body;
+
+  try {
+    // Query to fetch reviews with user names
+    const reviewQuery = `
+      SELECT 
+        cr.review_id,
+        cr.rating,
+        cr.review,
+        cr.created_at,
+        u.name AS user_name
+      FROM CourseReviews cr
+      JOIN users u ON cr.user_id = u.user_id
+      WHERE cr.course_id = ?
+      ORDER BY cr.created_at DESC
+    `;
+
+    const [reviewRows] = await pool.query(reviewQuery, [course_id]);
+
+    if (reviewRows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No reviews found for this course.',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Course reviews fetched successfully.',
+      data: reviewRows,
+    });
+
+  } catch (error) {
+    console.error('Error fetching course reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'An error occurred while fetching course reviews.',
       error: error.message,
     });
   }

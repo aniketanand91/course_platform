@@ -223,3 +223,29 @@ exports.projectStatus = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
+
+
+exports.courseReview = async (req, res) => {
+  const { user_id, course_id, rating, review } = req.body;
+
+  if (!user_id || !course_id || !rating || !review) {
+    return res.status(400).json({ message: "All fields are required." });
+  }
+
+  try {
+    const query = `
+      INSERT INTO CourseReviews (user_id, course_id, rating, review, created_at)
+      VALUES (?, ?, ?, ?, NOW())
+    `;
+
+    // Assuming you're using a MySQL connection pool named "db"
+    await db.query(query, [user_id, course_id, rating, review]);
+
+    res.status(201).json({ message: "Review submitted successfully." });
+  } catch (error) {
+    console.error("Error inserting review:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};

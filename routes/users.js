@@ -18,4 +18,11 @@ router.post('/ProjectSubmission', authMiddleware, courseController.submitProject
 
 router.post('/getProjectSubmissionDetails', authMiddleware, courseController.projectStatus);
 
+router.post('/forgotPassword', authController.resetPassword);
+
+router.post('/sendOTP', authController.sendOtpToMobile);
+
+router.post('/reviewCourse', authMiddleware, courseController.courseReview);
+
 module.exports = router;
+

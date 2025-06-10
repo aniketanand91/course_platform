@@ -91,6 +91,11 @@ const findOrCreateGoogleUser = async (profile) => {
   return user;
 };
 
+const updatePasswordByMobile = async (mobile, hashedPassword) => {
+  await pool.query(`UPDATE users SET password = ? WHERE mobile = ?`, [hashedPassword, mobile]);
+};
+
+
 module.exports = {
   getUserByMobile,
   getUserByEmail,
@@ -101,4 +106,5 @@ module.exports = {
   getUserById,
   findOrCreateGoogleUser,
   linkGoogleIdToUser,
+  updatePasswordByMobile,
 };

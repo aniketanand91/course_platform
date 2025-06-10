@@ -8,6 +8,7 @@ router.get('/course/:courseId', videoController.getCourseDetails);
 router.get('/stream/:videoId', authMiddleware, videoController.streamVideo);
 router.get('/mypurcahse', authMiddleware, videoController.getPurchasedVideoDetails);
 router.get('/myPurses/:videoId', authMiddleware, videoController.streamVideos);
+router.post('/getReviews', videoController.getReviews);
 
 
 
