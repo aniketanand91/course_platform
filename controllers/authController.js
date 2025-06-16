@@ -5,12 +5,20 @@ const userModel = require('../models/user');
 const { OAuth2Client } = require('google-auth-library');
 
 const { JWT_SECRET, GOOGLE_CLIENT_ID } = process.env;
-const sns = new AWS.SNS();
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+
+const sns = new AWS.SNS({
+    region: 'ap-south-1'  // Mumbai region
+});
+
 
 // ---------------------- Signup: Send OTP ----------------------
 
 exports.signup = async (req, res) => {
+
+
+
   try {
     const { name, mobile, email, password, role } = req.body;
 
@@ -38,7 +46,8 @@ exports.signup = async (req, res) => {
       PhoneNumber: `+91${mobile}`,
     };
 
-    await sns.publish(params).promise();
+    const smsresponse = await sns.publish(params).promise();
+    console.log(smsresponse);
     await userModel.storeOTP(mobile, otp);
 
     res.status(200).json({ message: 'OTP sent successfully', mobile });
