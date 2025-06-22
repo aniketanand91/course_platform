@@ -108,29 +108,43 @@ exports.getPurchasedVideoDetails = async (req, res) => {
   try {
     const userId = req.user.userId; // Extract userId from JWT token
 
-    // Query to fetch all purchased videos by the user within 90 days
+    // Query to fetch purchased videos in the last 90 days
     const purchaseQuery = `
       SELECT video_id FROM purchases
       WHERE user_id = ? AND purchase_date >= DATE_SUB(CURRENT_DATE, INTERVAL 90 DAY)
     `;
     const [purchaseRows] = await pool.query(purchaseQuery, [userId]);
 
-    if (purchaseRows.length === 0) {
+    // Query to fetch courses uploaded by this user
+    const uploadedQuery = `
+      SELECT course_id FROM Courses
+      WHERE user_id = ?
+    `;
+    const [uploadedRows] = await pool.query(uploadedQuery, [userId]);
+
+    // Extract purchased video IDs
+    const purchasedVideoIds = purchaseRows.map(row => row.video_id);
+
+    // Extract uploaded course IDs
+    const uploadedCourseIds = uploadedRows.map(row => row.course_id);
+
+    // Combine both IDs (avoid duplicates)
+    const allCourseIds = [...new Set([...purchasedVideoIds, ...uploadedCourseIds])];
+
+    if (allCourseIds.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'No records found.',
       });
     }
 
-    // Extract video IDs from the purchase records
-    const videoIds = purchaseRows.map(row => row.video_id);
-
-    // Query to fetch video details from the courses table
+    // Query to fetch course details
     const videoQuery = `
       SELECT course_id, title, description, category_id, video_url, price, sub_category, thumbnail
       FROM Courses
-      WHERE course_id IN (?)`;
-    const [videoDetails] = await pool.query(videoQuery, [videoIds]);
+      WHERE course_id IN (?)
+    `;
+    const [videoDetails] = await pool.query(videoQuery, [allCourseIds]);
 
     if (videoDetails.length === 0) {
       return res.status(404).json({
@@ -141,18 +155,22 @@ exports.getPurchasedVideoDetails = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Purchased video details fetched successfully.',
+      message: 'Courses fetched successfully.',
       data: videoDetails,
     });
   } catch (error) {
-    console.error('Error fetching purchased video details:', error);
+    console.error('Error fetching courses:', error);
     res.status(500).json({
       success: false,
-      message: 'An error occurred while fetching purchased video details.',
+      message: 'An error occurred while fetching courses.',
       error: error.message,
     });
   }
 };
+
+
+
+
 
 
 

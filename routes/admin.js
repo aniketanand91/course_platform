@@ -25,4 +25,6 @@ router.get('/admin/courses', checkAdmin,adminController.getAllCoursesWithUser);
 router.get('/getProjectDetails', checkAdmin,adminController.getAllProjectSubmissions);
 router.post('/approve-reject', checkAdmin,adminController.approveProjectSubmitted);
 
+router.post('/getPresignedURL', checkAdmin, courseController.generatePresignedUrl);
+
 module.exports = router;

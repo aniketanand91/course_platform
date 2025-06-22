@@ -136,49 +136,35 @@ exports.adminGetCourse = async (req, res) => {
   }
 };
 
-exports.uploadVideo = [
-  uploadVideo.single('video'),
-  async (req, res) => {
-    const { course_id, description, position } = req.body;
-    const file = req.file;
+exports.uploadVideo = async (req, res) => {
+  const { course_id, description, position, fileUrl } = req.body;
 
-    if (!course_id || !description || typeof Number(position) !== 'number' || !file) {
-      return res.status(400).json({ message: 'Missing or invalid fields' });
-    }
+  if (!course_id || !description || typeof Number(position) !== 'number' || !fileUrl) {
+    return res.status(400).json({ message: 'Missing or invalid fields' });
+  }
 
-    try {
-      const s3Params = {
-        Bucket: process.env.AWS_S3_BUCKET_NAME,
-        Key: `courses/${course_id}/${Date.now()}_${file.originalname}`, // ✅ wrapped in backticks
-        Body: file.buffer,
-        ContentType: file.mimetype,
-        ACL: 'public-read',
-      };
+  try {
+    const videoId = await courseModel.addVideoToCourse({
+      course_id,
+      video_url: fileUrl, // ✅ Use the fileUrl provided from frontend (pre-signed S3 URL)
+      description,
+      position: Number(position),
+    });
 
-      const s3Data = await s3.upload(s3Params).promise();
-      const video_url = s3Data.Location;
+    res.status(201).json({
+      message: 'Video uploaded successfully',
+      videoId,
+      video_url: fileUrl,
+    });
+  } catch (error) {
+    console.error('Error inserting video record:', error);
+    res.status(500).json({
+      message: 'An error occurred while saving the video record',
+      error: error.message,
+    });
+  }
+};
 
-      const videoId = await courseModel.addVideoToCourse({
-        course_id,
-        video_url,
-        description,
-        position: Number(position),
-      });
-
-      res.status(201).json({
-        message: 'Video uploaded successfully',
-        videoId,
-        video_url,
-      });
-    } catch (error) {
-      console.error('Error uploading video:', error);
-      res.status(500).json({
-        message: 'An error occurred while uploading the video',
-        error: error.message,
-      });
-    }
-  },
-];
 
 
 exports.submitProject = async (req, res) => {
@@ -247,5 +233,31 @@ exports.courseReview = async (req, res) => {
   } catch (error) {
     console.error("Error inserting review:", error);
     res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+
+exports.generatePresignedUrl = async (req, res) => {
+  const { fileName, fileType, course_id } = req.body;
+  console.log(fileName, fileType, course_id);
+  if (!fileName || !fileType || !course_id) {
+    return res.status(400).json({ message: 'Missing fields' });
+  }
+
+  const s3Params = {
+    Bucket: process.env.AWS_S3_BUCKET_NAME,
+    Key: `courses/${course_id}/${Date.now()}_${fileName}`,
+    Expires: 60 * 15, // URL valid for 15 minutes
+    ContentType: 'mp4',
+    ACL: 'public-read',
+  };
+
+  try {
+    const uploadURL = await s3.getSignedUrlPromise('putObject', s3Params);
+    return res.json({ uploadURL, fileKey: s3Params.Key });
+  } catch (error) {
+    console.error('Error generating presigned URL:', error);
+    res.status(500).json({ message: 'Error generating presigned URL' });
   }
 };
